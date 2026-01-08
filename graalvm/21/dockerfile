@@ -1,36 +1,36 @@
-FROM        container-registry.oracle.com/os/oraclelinux:9-slim AS mimalloc-builder
+FROM ghcr.io/graalvm/jdk-community:25-ol9 AS builder
 
-RUN         microdnf update \
-            && microdnf install -y git gcc gcc-c++ make cmake \
-            && microdnf clean all
+RUN microdnf install -y epel-release && \
+    microdnf update && \
+    microdnf install -y gcc gcc-c++ make git autoconf tar cmake
 
-WORKDIR     /opt
-RUN         git clone https://github.com/microsoft/mimalloc \
-            && cd mimalloc \
-            && mkdir -p build \
-            && cd build \
-            && cmake -DMI_BUILD_TESTS=OFF .. \
-            && make install
+RUN mkdir -p /opt /tmp/jprof /tmp/nmt /tmp/pmap /diagnostic
 
-FROM        container-registry.oracle.com/graalvm/jdk:21-ol9
+WORKDIR /opt
+RUN git clone https://github.com/microsoft/mimalloc && \
+    cd mimalloc && \
+    mkdir -p build && \
+    cd build && \
+    cmake -DMI_BUILD_TESTS=OFF ../ && \
+    make install
 
-LABEL       author="Softwarenoob" maintainer="admin@softwarenoob.com"
-LABEL       org.opencontainers.image.source="https://github.com/Software-Noob/pterodactyl-images"
-LABEL       org.opencontainers.image.licenses="MIT"
+FROM --platform=$TARGETOS/$TARGETARCH ghcr.io/graalvm/jdk-community:21-ol9
 
-RUN         microdnf update \
-            && microdnf install -y curl ca-certificates openssl git tar sqlite fontconfig tzdata iproute gcc gcc-c++ freetype libstdc++ lsof glibc-locale-source glibc-langpack-en numactl numactl-libs \
-            && microdnf clean all \
-            && adduser --home-dir /home/container container
+LABEL maintainer="yunuservices"
 
-ENV         LC_ALL=en_US.UTF-8
-ENV         LANG=en_US.UTF-8
-ENV         LANGUAGE=en_US.UTF-8
+RUN microdnf install -y epel-release && \
+    microdnf update && \
+    microdnf install -y curl ca-certificates openssl git tar sqlite fontconfig tzdata iproute gcc gcc-c++ freetype libstdc++ lsof glibc glibc-locale-source glibc-langpack-en && \
+    microdnf clean all && \
+    adduser --home-dir /home/container container
 
-USER        container
-ENV         USER=container HOME=/home/container
-WORKDIR     /home/container
+USER container
+ENV USER=container \
+    HOME=/home/container
 
-COPY        --from=mimalloc-builder /usr/local/lib/libmimalloc.so /usr/local/lib/libmimalloc.so
-COPY        scripts/mimalloc.sh /entrypoint.sh
-CMD         [ "/bin/bash", "/entrypoint.sh" ]
+WORKDIR /home/container/
+
+COPY --from=builder /usr/local/lib64/libmimalloc.so /usr/local/lib/libmimalloc.so
+COPY scripts/mimalloc.sh /entrypoint.sh
+
+CMD ["/bin/bash", "/entrypoint.sh"]
