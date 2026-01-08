@@ -1,4 +1,4 @@
-FROM ghcr.io/graalvm/jdk-community:25-ol9 AS builder
+FROM ghcr.io/graalvm/jdk-community:21-ol9 AS builder
 
 RUN microdnf install -y epel-release && \
     microdnf update && \
@@ -14,7 +14,7 @@ RUN git clone https://github.com/microsoft/mimalloc && \
     cmake -DMI_BUILD_TESTS=OFF ../ && \
     make install
 
-FROM --platform=$TARGETOS/$TARGETARCH ghcr.io/graalvm/jdk-community:21-ol9
+FROM --platform=$TARGETOS/$TARGETARCH container-registry.oracle.com/graalvm/jdk:21-ol9
 
 LABEL maintainer="yunuservices"
 
