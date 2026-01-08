@@ -1,4 +1,4 @@
-name: Build Java GraalVM
+name: Build GraalVM
 
 on:
     workflow_dispatch:
