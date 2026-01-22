@@ -13,6 +13,10 @@ RUN git clone https://github.com/microsoft/mimalloc && \
     cd build && \
     cmake -DMI_BUILD_TESTS=OFF ../ && \
     make install
+RUN git clone --depth 1 https://github.com/axboe/liburing && \
+    cd liburing && \
+    ./configure && \
+    make -C src install prefix=/usr libdir=/usr/lib64 libdevdir=/usr/lib64 DESTDIR=/tmp/liburing
 
 FROM --platform=$TARGETOS/$TARGETARCH container-registry.oracle.com/graalvm/jdk:25-ol9
 
@@ -24,7 +28,8 @@ RUN microdnf install -y epel-release && \
     microdnf clean all && \
     adduser --home-dir /home/container container
 RUN microdnf install -y liburing \
-    && ln -s /usr/lib64/liburing.so.2 /usr/lib64/liburing-ffi.so
+    && microdnf clean all
+COPY --from=builder /tmp/liburing/usr/lib64/liburing-ffi.so* /usr/lib64/
 
 USER container
 ENV USER=container \
