@@ -2,7 +2,7 @@ FROM ghcr.io/graalvm/jdk-community:21-ol9 AS builder
 
 RUN microdnf install -y epel-release && \
     microdnf update && \
-    microdnf install -y gcc gcc-c++ make git autoconf tar cmake
+    microdnf install -y gcc gcc-c++ make git autoconf tar cmake kernel-headers
 
 RUN mkdir -p /opt /tmp/jprof /tmp/nmt /tmp/pmap /diagnostic
 
