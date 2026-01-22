@@ -2,7 +2,7 @@ FROM ghcr.io/graalvm/jdk-community:21-ol9 AS builder
 
 RUN microdnf install -y epel-release && \
     microdnf update && \
-    microdnf install -y gcc gcc-c++ make git autoconf tar cmake kernel-headers
+    microdnf install -y gcc gcc-c++ make git autoconf tar cmake
 
 RUN mkdir -p /opt /tmp/jprof /tmp/nmt /tmp/pmap /diagnostic
 
@@ -13,14 +13,6 @@ RUN git clone https://github.com/microsoft/mimalloc && \
     cd build && \
     cmake -DMI_BUILD_TESTS=OFF ../ && \
     make install
-RUN git clone --depth 1 https://github.com/axboe/liburing && \
-    cd liburing && \
-    ./configure --libdir=/usr/lib64 --libdevdir=/usr/lib64 && \
-    make -C src install prefix=/usr DESTDIR=/tmp/liburing && \
-    mkdir -p /tmp/liburing-ffi && \
-    cp -a /tmp/liburing/usr/lib64/liburing-ffi.so* /tmp/liburing-ffi/ 2>/dev/null || \
-    cp -a /tmp/liburing/usr/lib/liburing-ffi.so* /tmp/liburing-ffi/
-
 FROM --platform=$TARGETOS/$TARGETARCH container-registry.oracle.com/graalvm/jdk:25-ol9
 
 LABEL maintainer="yunuservices"
@@ -30,9 +22,9 @@ RUN microdnf install -y epel-release && \
     microdnf install -y curl ca-certificates openssl git tar sqlite fontconfig tzdata iproute gcc gcc-c++ freetype libstdc++ lsof glibc glibc-locale-source glibc-langpack-en numactl numactl-libs && \
     microdnf clean all && \
     adduser --home-dir /home/container container
-RUN microdnf install -y liburing \
+RUN microdnf install -y liburing liburing-devel \
+    && ln -sf /usr/lib64/liburing-ffi.so.2 /usr/lib64/liburing-ffi.so \
     && microdnf clean all
-COPY --from=builder /tmp/liburing-ffi/liburing-ffi.so* /usr/lib64/
 
 USER container
 ENV USER=container \
