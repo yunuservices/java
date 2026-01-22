@@ -2,7 +2,7 @@ FROM ghcr.io/graalvm/jdk-community:21-ol9 AS builder
 
 RUN microdnf install -y epel-release && \
     microdnf update && \
-    microdnf install -y gcc gcc-c++ make git autoconf tar cmake
+    microdnf install -y gcc gcc-c++ make git autoconf tar cmake kernel-headers
 
 RUN mkdir -p /opt /tmp/jprof /tmp/nmt /tmp/pmap /diagnostic
 
@@ -13,6 +13,16 @@ RUN git clone https://github.com/microsoft/mimalloc && \
     cd build && \
     cmake -DMI_BUILD_TESTS=OFF ../ && \
     make install
+RUN git clone --depth 1 https://github.com/axboe/liburing && \
+    cd liburing && \
+    ./configure --libdir=/usr/lib64 --libdevdir=/usr/lib64 && \
+    make -C src && \
+    version=$(awk '/^Version:/ {print $2}' liburing.spec) && \
+    major=$(echo "$version" | cut -d. -f1) && \
+    mkdir -p /tmp/liburing-ffi && \
+    cp -a "src/liburing-ffi.so.$version" /tmp/liburing-ffi/ && \
+    ln -sf "liburing-ffi.so.$version" "/tmp/liburing-ffi/liburing-ffi.so.$major" && \
+    ln -sf "liburing-ffi.so.$version" /tmp/liburing-ffi/liburing-ffi.so
 FROM --platform=$TARGETOS/$TARGETARCH container-registry.oracle.com/graalvm/jdk:25-ol9
 
 LABEL maintainer="yunuservices"
@@ -22,9 +32,7 @@ RUN microdnf install -y epel-release && \
     microdnf install -y curl ca-certificates openssl git tar sqlite fontconfig tzdata iproute gcc gcc-c++ freetype libstdc++ lsof glibc glibc-locale-source glibc-langpack-en numactl numactl-libs && \
     microdnf clean all && \
     adduser --home-dir /home/container container
-RUN microdnf install -y liburing liburing-devel \
-    && ln -sf /usr/lib64/liburing-ffi.so.2 /usr/lib64/liburing-ffi.so \
-    && microdnf clean all
+COPY --from=builder /tmp/liburing-ffi/liburing-ffi.so* /usr/lib64/
 
 USER container
 ENV USER=container \
